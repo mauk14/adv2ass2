@@ -213,17 +213,46 @@ type MockUserModel struct {
 }
 
 func (m MockUserModel) Insert(user *User) error {
+	switch user.Email {
+	case "mnd33599@gmail.com":
+		return ErrDuplicateEmail
+	default:
+		return nil
+	}
 	return nil
 }
 
 func (m MockUserModel) GetByEmail(email string) (*User, error) {
-	return nil, nil
+	switch email {
+	case "notfound@gmail.com":
+		return nil, ErrRecordNotFound
+	}
+	return &User{Password: password{hash: []byte("$2a$12$IaF/yRJr1Z6201/TswW66OMXqLjcuMwOHGgkJDAXJ31g2sbgOFidS")}}, nil
+
 }
 
 func (m MockUserModel) Update(user *User) error {
+	switch user.ID {
+	case 1:
+		return ErrEditConflict
+	default:
+		return nil
+	}
 	return nil
 }
 
 func (m MockUserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error) {
-	return nil, nil
+	switch tokenPlaintext {
+	case "11111111111111111111111112":
+		return nil, ErrRecordNotFound
+	case "11111111111111111111111113":
+		return &User{ID: 1}, nil
+	default:
+		return &User{ID: 2, Activated: true}, nil
+	}
+	return &User{ID: 2, Activated: true}, nil
+}
+
+func (m MockUserModel) IsAnonymous() bool {
+	return false
 }

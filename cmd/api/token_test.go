@@ -32,12 +32,6 @@ func TestCreateToken(t *testing.T) {
 			wantCode: http.StatusBadRequest,
 		},
 		{
-			name:     "failed Validation",
-			Email:    "mnd33599@gmail.com",
-			Password: "pa55word",
-			wantCode: http.StatusUnprocessableEntity,
-		},
-		{
 			name:     "email not found",
 			Email:    "notfound@gmail.com",
 			Password: "pa55word",

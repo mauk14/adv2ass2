@@ -56,6 +56,13 @@ func TestRegisterUser(t *testing.T) {
 			Password: "123456",
 			wantCode: http.StatusUnprocessableEntity,
 		},
+		{
+			name:     "Duplicate email",
+			Username: "user",
+			Email:    "mnd33599@gmail.com",
+			Password: "123456789",
+			wantCode: http.StatusUnprocessableEntity,
+		},
 	}
 
 	for _, tt := range tests {
@@ -117,12 +124,12 @@ func TestActivateUser(t *testing.T) {
 		},
 		{
 			name:     "ErrRecordNotFound",
-			Token:    "11111111111111111111111111",
+			Token:    "11111111111111111111111112",
 			wantCode: http.StatusUnprocessableEntity,
 		},
 		{
 			name:     "unable to update",
-			Token:    "11111111111111111111111111",
+			Token:    "11111111111111111111111113",
 			wantCode: http.StatusConflict,
 		},
 	}
