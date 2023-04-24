@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -123,7 +124,7 @@ func TestCreateMovie(t *testing.T) {
 			inputData := struct {
 				Title   string   `json:"title"`
 				Year    int32    `json:"year"`
-				Runtime string    `json:"runtime"`
+				Runtime string   `json:"runtime"`
 				Genres  []string `json:"genres"`
 			}{
 				Title:   tt.Title,
@@ -133,9 +134,9 @@ func TestCreateMovie(t *testing.T) {
 			}
 
 			b, err := json.Marshal(&inputData)
-   			 if err != nil {
-      		  t.Fatal("wrong input data");
-    		}
+			if err != nil {
+				t.Fatal("wrong input data")
+			}
 			if tt.name == "test for wrong input" {
 				b = append(b, 'a')
 			}
@@ -147,7 +148,6 @@ func TestCreateMovie(t *testing.T) {
 		})
 	}
 }
-
 
 func TestDeleteMovie(t *testing.T) {
 	app := newTestApplication(t)
@@ -172,7 +172,6 @@ func TestDeleteMovie(t *testing.T) {
 		},
 	}
 
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
@@ -187,4 +186,196 @@ func TestDeleteMovie(t *testing.T) {
 		})
 	}
 
+}
+
+func TestListMovie(t *testing.T) {
+	app := newTestApplication(t)
+	ts := newTestServer(t, app.routesTest())
+	defer ts.Close()
+
+	tests := []struct {
+		name    string
+		Title   string
+		Genres  string
+		Filters struct {
+			Page     string
+			PageSize string
+			Sort     string
+		}
+		wantCode int
+		wantBody string
+	}{
+		{
+			name:   "Invalid page input",
+			Title:  "Test",
+			Genres: "",
+			Filters: struct {
+				Page     string
+				PageSize string
+				Sort     string
+			}{Page: "s", PageSize: "s", Sort: ""},
+			wantCode: http.StatusUnprocessableEntity,
+		},
+		{
+			name:   "Invalid page input page>0",
+			Title:  "Test",
+			Genres: "",
+			Filters: struct {
+				Page     string
+				PageSize string
+				Sort     string
+			}{Page: "-1", PageSize: "", Sort: ""},
+			wantCode: http.StatusUnprocessableEntity,
+		},
+		{
+			name:   "Valid",
+			Title:  "Test",
+			Genres: "lol,kek",
+			Filters: struct {
+				Page     string
+				PageSize string
+				Sort     string
+			}{Page: "", PageSize: "", Sort: ""},
+			wantCode: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url := fmt.Sprintf("/v1/movies?title=%s&genres=%s&page=%s&page_size=%s&sort=%s", tt.Title, tt.Genres, tt.Filters.Page, tt.Filters.PageSize, tt.Filters.Sort)
+
+			code, _, body := ts.get(t, url)
+
+			assert.Equal(t, code, tt.wantCode)
+
+			if tt.wantBody != "" {
+				assert.StringContains(t, body, tt.wantBody)
+			}
+
+		})
+	}
+}
+
+func TestUpdateMovie(t *testing.T) {
+	app := newTestApplication(t)
+	ts := newTestServer(t, app.routesTest())
+	defer ts.Close()
+
+	const (
+		validTitle   = "Test Title"
+		validYear    = 2021
+		validRuntime = "105 mins"
+	)
+	validGenres := []string{"comedy", "drama"}
+
+	tests := []struct {
+		name     string
+		url      string
+		Title    string
+		Year     int32
+		Runtime  string
+		Genres   []string
+		wantCode int
+		wantBody string
+	}{
+		{
+			name:     "Non-existent ID",
+			url:      "/v1/movies/2",
+			Title:    validTitle,
+			Year:     validYear,
+			Runtime:  validRuntime,
+			Genres:   validGenres,
+			wantCode: http.StatusNotFound,
+		},
+		{
+			name:     "invalid ID parameter",
+			url:      "/v1/movies/s",
+			Title:    "",
+			Year:     validYear,
+			Runtime:  validRuntime,
+			Genres:   validGenres,
+			wantCode: http.StatusNotFound,
+		},
+		{
+			name:     "test for wrong input",
+			url:      "/v1/movies/1",
+			Title:    validTitle,
+			Year:     validYear,
+			Runtime:  validRuntime,
+			Genres:   validGenres,
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name:     "bad json",
+			url:      "/v1/movies/1",
+			Title:    validTitle,
+			Year:     validYear,
+			Runtime:  validRuntime,
+			Genres:   validGenres,
+			wantCode: http.StatusBadRequest,
+		},
+		{
+			name:     "Empty Title",
+			url:      "/v1/movies/1",
+			Title:    "",
+			Year:     validYear,
+			Runtime:  validRuntime,
+			Genres:   validGenres,
+			wantCode: http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "year < 1888",
+			url:      "/v1/movies/1",
+			Title:    validTitle,
+			Year:     1500,
+			Runtime:  validRuntime,
+			Genres:   validGenres,
+			wantCode: http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "Valid",
+			url:      "/v1/movies/1",
+			Title:    validTitle,
+			Year:     validYear,
+			Runtime:  validRuntime,
+			Genres:   validGenres,
+			wantCode: http.StatusOK,
+			wantBody: "{\"movie\":{\"id\":1,\"title\":\"Test Title\",\"year\":2021,\"runtime\":\"105 mins\",\"genres\":[\"comedy\",\"drama\"],\"version\":0}}\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inputData := struct {
+				Title   string   `json:"title"`
+				Year    int32    `json:"year"`
+				Runtime string   `json:"runtime"`
+				Genres  []string `json:"genres"`
+			}{
+				Title:   tt.Title,
+				Year:    tt.Year,
+				Runtime: tt.Runtime,
+				Genres:  tt.Genres,
+			}
+
+			b, err := json.Marshal(&inputData)
+			if err != nil {
+				t.Fatal("wrong input data")
+			}
+			if tt.name == "test for wrong input" {
+				b = append(b, 'a')
+			} else if tt.name == "bad json" {
+				b[1] = ','
+			}
+
+			code, _, body := ts.patchReq(t, tt.url, b)
+
+			assert.Equal(t, code, tt.wantCode)
+
+			if tt.wantBody != "" {
+				assert.StringContains(t, body, tt.wantBody)
+			}
+
+		})
+	}
 }
